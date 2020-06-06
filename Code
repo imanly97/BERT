@@ -1,0 +1,51 @@
+import numpy as np
+import pandas as pd
+from sklearn.model_selection import train_test_split
+import torch
+
+df = pd.read_csv("Desktop/IMDB.csv")
+df.head()
+
+df['sentiment'] = df['sentiment'].replace('positive',1)
+df['sentiment'] = df['sentiment'].replace('negative',0)
+df['sentiment'].value_counts()
+
+df.columns = ('text', 'length', 'label')
+
+# computationally restricted model
+#df_1 = df[:1000]
+
+# full model
+df_1 = df
+
+X_train, X_test, y_train, y_test = train_test_split(df_1['text'], df_1['label'], test_size=0.2)
+
+train = pd.concat([X_train, y_train], axis = 1)
+test = pd.concat([X_test,y_test], axis = 1)
+
+from simpletransformers.classification import ClassificationModel
+
+# load in roberta, create a transformermodel
+model = ClassificationModel('roberta', 'roberta-base', use_cuda = False, args = {'overwrite_output_dir': True})
+# train the model
+model.train_model(train)
+# evaluate the model
+result, model_outputs, wrong_predictions = model.eval_model(test)
+
+print(result)
+
+### ROC analysis
+
+from sklearn.metrics import roc_curve
+# convert series to list for matplotlib
+rocx = list(X_test)
+rocy = list(y_test)
+predictions, raw_outputs = model.predict(rocx)
+
+fpr, tpr, threshold = roc_curve(rocy, predictions)
+
+import matplotlib.pyplot as plt
+plt.plot(fpr,tpr)
+plt.title("ROC Curve")
+plt.xlabel('True positive rate')
+plt.ylabel('True negative rate')
